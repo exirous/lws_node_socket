@@ -1,12 +1,8 @@
-/**
- * Created by ExiRouS on 5/1/2014.
- */
-
-
 var http = require('http');
 var app = http.createServer(handler);
 var io = require('socket.io').listen(app, {log: false});
 var extend = require('util')._extend;
+var config = require('./config.json');
 
 /*, mongoose = require('mongoose');*/
 
@@ -16,7 +12,7 @@ app.on('listening', function () {
     console.log('ok, server listening');
 });
 
-app.listen(3000);
+app.listen(3010);
 
 var TeamSpeakClient = require("node-teamspeak"),
     util = require("util");
@@ -24,18 +20,23 @@ var teamSpeakClient = new TeamSpeakClient("127.0.0.1");
 var TsKeepAliveTimer;
 
 
-function handler(req, res) {
-    if (req.headers.host == '127.0.0.1:3000') {
+function handler(req, res)
+{
+    if (req.headers.host == '127.0.0.1:3010')
+    {
         req.on('readable', function () {
             var fullData = "";
             var chunk;
-            while (null !== (chunk = req.read())) {
+            while (null !== (chunk = req.read()))
+            {
                 fullData += (chunk.toString());
             }
             var message = JSON.parse(fullData);
 
-            if (message.isInternal) {
-                switch (message.event) {
+            if (message.isInternal)
+            {
+                switch (message.event)
+                {
                     case 'RELOAD_USER_LIST':
                         clearInterval(reloadInterval);
                         refreshClientList();
@@ -44,12 +45,18 @@ function handler(req, res) {
                     case 'NOTIFY_USER':
                         var clid = findIdFromUID(message.data.reciever);
                         if (clid)
-                          teamSpeakClient.send("sendtextmessage", {targetmode:1, target: clid, msg: message.data.msg});
+                            teamSpeakClient.send("sendtextmessage", {
+                                targetmode: 1,
+                                target:     clid,
+                                msg:        message.data.msg
+                            });
                         break;
                 }
             }
-            else {
-                if (message.room) {
+            else
+            {
+                if (message.room)
+                {
                     io.sockets.in(message.room).emit(message.event, message.data);
                 }
                 else
@@ -61,16 +68,19 @@ function handler(req, res) {
 }
 
 
-function findIdFromUID(uid) {
+function findIdFromUID(uid)
+{
     for (var i in TSClients)
         if (TSClients[i].uid == uid)
             return TSClients[i].clid;
-        return false;
+    return false;
 }
 
-function flatten() {
+function flatten()
+{
     var clients = {};
-    for (var i in TSClients) {
+    for (var i in TSClients)
+    {
         var id = TSClients[i].channelId;
         if (!clients.hasOwnProperty(id))
             clients[id] = [];
@@ -80,18 +90,22 @@ function flatten() {
 }
 
 
-function getClients() {
+function getClients()
+{
     var flatClients = flatten();
     var clients = getClientsRecursive(TSChannelTree, flatClients);
-    return clients.length ? clients : {empty:true};
+    return clients.length ? clients : {empty: true};
 }
 
-function getClientsRecursive(channels, clients) {
+function getClientsRecursive(channels, clients)
+{
     var outChannels = [];
-    for (var i in channels) {
+    for (var i in channels)
+    {
         var channel = extend({}, channels[i]);
         var subCh = getClientsRecursive(channel.channels, clients);
-        if (subCh.length || clients.hasOwnProperty(channel.id)) {
+        if (subCh.length || clients.hasOwnProperty(channel.id))
+        {
             channel.clients = clients.hasOwnProperty(channel.id) ? clients[channel.id] : [];
             channel.channels = subCh;
             outChannels.push(channel);
@@ -107,32 +121,35 @@ io.sockets.on('connection', function (socket) {
         socket.join(data.token);
         checkClientMessages({token: data.token, uid: data.uid});
     });
-    socket.emit('ready',{});
+    socket.emit('ready', {});
 });
 
 var TSChannelTree = {};
 var TSClients = {};
 var reloadInterval;
 
-function refreshClientList(firstTime) {
+function refreshClientList(firstTime)
+{
     teamSpeakClient.send("clientlist", {
-        _uid: true,
+        _uid:    true,
         _groups: true,
-        _voice: true,
-        _away: true
+        _voice:  true,
+        _away:   true
     }, function (err, response, rawResponse) {
         TSClients = {};
-        for (var i in response) {
+        for (var i in response)
+        {
             var client = response[i];
             if (client.client_type)
                 continue;
             client = {
-                clid: client.clid,
-                name: client.client_nickname,
-                uid: client.client_unique_identifier,
-                groups: (client.client_servergroups + "").split(','),
+                clid:      client.clid,
+                name:      client.client_nickname,
+                uid:       client.client_unique_identifier,
+                groups:    (client.client_servergroups + "").split(','),
                 channelId: client.cid
             };
+            console.log(client);
             if (firstTime)
                 checkClientMessages(client);
             TSClients[client.clid] = client;
@@ -140,15 +157,16 @@ function refreshClientList(firstTime) {
     });
 }
 
-function checkClientMessages(client) {
+function checkClientMessages(client)
+{
     if (!client.uid || typeof client.uid == 'undefined')
-      return;
+        return;
     var options = {
-        host: 'lws.exirous.com',
-        path: '/user/unreadMessages?ts_id='+encodeURIComponent(client.uid)
+        host: 'luftwaffeschule.ru',
+        path: '/user/unreadMessages?ts_id=' + encodeURIComponent(client.uid)
     };
-    console.log ('/user/unreadMessages?ts_id='+encodeURIComponent(client.uid));
-    var callback = function(response) {
+
+    var callback = function (response) {
         var str = '';
         //another chunk of data has been recieved, so append it to `str`
         response.on('data', function (chunk) {
@@ -156,7 +174,8 @@ function checkClientMessages(client) {
         });
 
         response.on('end', function () {
-            try {
+            try
+            {
                 var data = JSON.parse(str);
             }
             catch (e)
@@ -168,7 +187,10 @@ function checkClientMessages(client) {
                 count = data.data.length;
 
             if (count > 0 && client.clid)
-                teamSpeakClient.send("clientpoke", {clid: client.clid, msg: "У вас "+count+" не прочитанных сообщения. \n [url]http://lws.exirous.com/#/messenger[/url]"});
+                teamSpeakClient.send("clientpoke", {
+                    clid: client.clid,
+                    msg:  "У вас " + count + " не прочитанных сообщения. \n [url]http://luftwaffeschule.ru/#/messenger[/url]"
+                });
 
             if (count > 0 && client.token)
             {
@@ -185,26 +207,38 @@ function checkClientMessages(client) {
 
 
 teamSpeakClient.send("login", {
-    client_login_name: "serveradmin",
-    client_login_password: "5329"
+    client_login_name:     "serveradmin",
+    client_login_password: config.ts3Password
 }, function (err, response, rawResponse) {
 
 
+    if (err != null)
+        console.log(err);
+    else
+        console.log("serveradmin connected!");
+
     teamSpeakClient.send("use", {sid: 1}, function (err, response, rawResponse) {
+        if (err != null)
+            console.log(err);
         teamSpeakClient.send("channellist", function (err, response, rawResponse) {
 
-            function fillRecursive(list, parentId) {
+            if (err != null)
+                console.log(err);
+
+            function fillRecursive(list, parentId)
+            {
                 var objectList = [];
-                for (var i in list) {
+                for (var i in list)
+                {
                     var channel = list[i];
                     if (i == 0 || parentId != channel.pid)
                         continue;
                     objectList.push({
-                        id: channel.cid,
-                        name: channel.channel_name,
-                        order: channel.channel_order,
+                        id:        channel.cid,
+                        name:      channel.channel_name,
+                        order:     channel.channel_order,
                         parent_id: channel.pid,
-                        channels: fillRecursive(list, channel.cid)
+                        channels:  fillRecursive(list, channel.cid)
                     });
                 }
                 return objectList;
@@ -227,6 +261,7 @@ teamSpeakClient.send("login", {
 
         var lastMovedEvent = null;
         teamSpeakClient.on('clientmoved', function (message) {
+            console.log("clientmoved");
             if (lastMovedEvent == message)
                 return;
             lastMovedEvent = message;
@@ -237,6 +272,7 @@ teamSpeakClient.send("login", {
 
         var lastEnterEvent = null;
         teamSpeakClient.on('cliententerview', function (client) {
+            console.log("cliententerview");
             if (lastEnterEvent == client)
                 return;
             lastEnterEvent = client;
@@ -245,10 +281,10 @@ teamSpeakClient.send("login", {
                 return;
 
             client = {
-                clid: client.clid,
-                name: client.client_nickname,
-                uid: client.client_unique_identifier,
-                groups: (client.client_servergroups + "").split(','),
+                clid:      client.clid,
+                name:      client.client_nickname,
+                uid:       client.client_unique_identifier,
+                groups:    (client.client_servergroups + "").split(','),
                 channelId: client.cid ? client.cid : client.ctid
             };
             TSClients[client.clid] = client;
@@ -258,6 +294,7 @@ teamSpeakClient.send("login", {
 
         var lastLeaveEvent = null;
         teamSpeakClient.on('clientleftview', function (message) {
+            console.log("clientleftview");
             if (lastLeaveEvent == message)
                 return;
             lastLeaveEvent = message;
