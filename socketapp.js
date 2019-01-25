@@ -31,7 +31,16 @@ function handler(req, res)
             {
                 fullData += (chunk.toString());
             }
-            var message = JSON.parse(fullData);
+
+            try
+            {
+                var message = JSON.parse(fullData);
+            }
+            catch (e)
+            {
+                console.e("Error parsing:");
+                console.e(fullData);
+            }
 
             if (message.isInternal)
             {
@@ -261,7 +270,6 @@ teamSpeakClient.send("login", {
 
         var lastMovedEvent = null;
         teamSpeakClient.on('clientmoved', function (message) {
-            console.log("clientmoved");
             if (lastMovedEvent == message)
                 return;
             lastMovedEvent = message;
@@ -272,7 +280,6 @@ teamSpeakClient.send("login", {
 
         var lastEnterEvent = null;
         teamSpeakClient.on('cliententerview', function (client) {
-            console.log("cliententerview");
             if (lastEnterEvent == client)
                 return;
             lastEnterEvent = client;
@@ -294,7 +301,6 @@ teamSpeakClient.send("login", {
 
         var lastLeaveEvent = null;
         teamSpeakClient.on('clientleftview', function (message) {
-            console.log("clientleftview");
             if (lastLeaveEvent == message)
                 return;
             lastLeaveEvent = message;
