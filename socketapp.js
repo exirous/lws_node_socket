@@ -3,6 +3,7 @@ var app = http.createServer(handler);
 var io = require('socket.io').listen(app, {log: false});
 var extend = require('util')._extend;
 var config = require('./config.json');
+var ioNsp = io.of('/socket.io');
 
 /*, mongoose = require('mongoose');*/
 
@@ -38,8 +39,9 @@ function handler(req, res)
             }
             catch (e)
             {
-                console.e("Error parsing:");
-                console.e(fullData);
+                console.log("Error parsing:");
+                console.log(fullData);
+                return;
             }
 
             if (message.isInternal)
@@ -66,10 +68,10 @@ function handler(req, res)
             {
                 if (message.room)
                 {
-                    io.sockets.in(message.room).emit(message.event, message.data);
+                    ioNsp.in(message.room).emit(message.event, message.data);
                 }
                 else
-                    io.sockets.emit(message.event, message.data);
+                    ioNsp.emit(message.event, message.data);
             }
         });
         res.end('OK');
@@ -124,7 +126,7 @@ function getClientsRecursive(channels, clients)
 }
 
 
-io.sockets.on('connection', function (socket) {
+ioNsp.on('connection', function (socket) {
     socket.emit('ts_clients', getClients());
     socket.on('register', function (data) {
         socket.join(data.token);
@@ -205,7 +207,7 @@ function checkClientMessages(client)
             {
                 for (var j in data.data)
                 {
-                    io.sockets.in(client.token).emit('new_message', data.data[j]);
+                    ioNsp.in(client.token).emit('new_message', data.data[j]);
                 }
             }
         });
@@ -275,7 +277,7 @@ teamSpeakClient.send("login", {
             lastMovedEvent = message;
             TSClients[message.clid].channelId = message.ctid;
 
-            io.sockets.emit('ts_clients', getClients());
+            ioNsp.emit('ts_clients', getClients());
         });
 
         var lastEnterEvent = null;
@@ -295,7 +297,7 @@ teamSpeakClient.send("login", {
                 channelId: client.cid ? client.cid : client.ctid
             };
             TSClients[client.clid] = client;
-            io.sockets.emit('ts_clients', getClients());
+            ioNsp.emit('ts_clients', getClients());
             checkClientMessages(client);
         });
 
@@ -307,7 +309,7 @@ teamSpeakClient.send("login", {
             if (message.client_type == 1)
                 return;
             delete TSClients[message.clid];
-            io.sockets.emit('ts_clients', getClients());
+            ioNsp.emit('ts_clients', getClients());
         });
     });
 });
